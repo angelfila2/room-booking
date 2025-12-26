@@ -1,0 +1,8 @@
+
+DELETE http://localhost:3001/api/booking
+Content-Type: application/json
+
+{
+  "id":"50a29033-3ca4-45b2-a3eb-a7eb6e1e341d"
+}
+

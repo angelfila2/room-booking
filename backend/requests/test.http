@@ -1,0 +1,12 @@
+
+POST http://localhost:3001/api/booking
+Content-Type: application/json
+
+{
+  "date": "2025-01-10",
+  "roomId": "CRoom1",
+  "course": "ICT280",
+  "startTime": "09:00",
+  "endTime": "11:00"
+}
+

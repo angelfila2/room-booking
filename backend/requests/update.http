@@ -1,0 +1,10 @@
+PUT http://localhost:3001/api/booking
+Content-Type: application/json
+
+{
+  "id": "b0a3f13b-d0fe-4307-8900-249fab5b9fa2",
+  "roomId": "CRoom1",
+  "course": "ICT280-UPDATED",
+  "startTime": "10:00",
+  "endTime": "12:00"
+}
