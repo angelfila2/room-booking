@@ -1,0 +1,67 @@
+// This is your Prisma schema file
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  bookings Booking[]
+}
+
+model DailyOverview {
+  id           String   @id @default(uuid())
+  overviewDate DateTime @unique
+
+  // Relations
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+}
+
+model Room {
+  id       String @id @default(uuid())
+  roomCode String @unique
+  location String
+
+  // Relations
+  bookings Booking[]
+}
+
+model Booking {
+  id              String   @id @default(uuid())
+
+  dailyOverviewId String
+  roomId          String
+  userId          String
+
+  courseCode String
+  startTime  DateTime
+  endTime    DateTime
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  dailyOverview DailyOverview @relation(fields: [dailyOverviewId], references: [id], onDelete: Cascade)
+  room          Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([dailyOverviewId])
+  @@index([roomId])
+  @@index([userId])
+
+  // Prevent double-booking the same room & time
+  @@unique([dailyOverviewId, roomId, startTime, endTime])
+}

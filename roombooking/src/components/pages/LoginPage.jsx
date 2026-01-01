@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const LoginPage = () => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -16,14 +16,10 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(
-        "http://localhost:3001/auth/login",
-        { username, password },
-        { withCredentials: true }
-      );
-
-      // ✅ FIX 1: store token (single source of truth)
-      sessionStorage.setItem("accessToken", response.data.accessToken);
+      const response = await axios.post("http://localhost:3001/auth/login", {
+        email,
+        password,
+      });
 
       // ✅ FIX 2: navigate normally (no router state)
       navigate("/dashboard");
@@ -54,16 +50,16 @@ const LoginPage = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <label
-              htmlFor="username"
+              htmlFor="email"
               className="block text-sm font-medium text-slate-700"
             >
               Username
             </label>
             <input
-              id="username"
+              id="email"
               type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
               placeholder="Enter your username"
               required
