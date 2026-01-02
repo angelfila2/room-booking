@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
-import Modal from "../modals/Modal";
+import Modal from "../modals/ViewModal";
 import AddBookingModal from "../modals/AddBookingModal";
 import axios from "axios";
 
 const DailyViewPage = ({ showNotification }) => {
-  const [data, setData] = useState(null);
+  const HARDCODED_USER_ID = "c290a99e-fe6c-4855-bb73-2d5eda459978";
+  const [rooms, setRooms] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [openBookingModal, setOpenBookingModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const today = new Date();
+  const todayISO = today.toISOString().split("T")[0];
 
   const formattedDate = today.toLocaleDateString("en-GB", {
     weekday: "long",
@@ -19,98 +22,107 @@ const DailyViewPage = ({ showNotification }) => {
     year: "numeric",
   });
 
-  const jsScript = today.toLocaleDateString("en-GB");
-
-  const fetchBookings = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("http://localhost:3001/api/booking");
-      setData(res.data);
-    } catch (err) {
-      showNotification("Failed to load bookings", "error");
-      setError("Failed to load bookings");
+
+      const [roomsRes, bookingsRes] = await Promise.all([
+        axios.get("http://localhost:3001/api/room"),
+        axios.get("http://localhost:3001/api/booking"),
+      ]);
+
+      setRooms(roomsRes.data);
+      setBookings(bookingsRes.data);
+    } catch {
+      setError("Failed to load data");
+      showNotification("Failed to load data", "error");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchBookings();
+    fetchData();
   }, []);
 
-  if (loading) {
-    return <p className="text-slate-500">Loading bookings…</p>;
-  }
+  if (loading) return <p className="text-slate-500">Loading…</p>;
+  if (error) return <p className="text-red-500">{error}</p>;
 
-  if (error) {
-    return <p className="text-red-500">{error}</p>;
-  }
+  // Filter bookings for today
+  const todaysBookings = bookings.filter(
+    (b) => b.courseDate.split("T")[0] === todayISO
+  );
 
-  if (!data || data.length === 0) {
-    return <p>No booking data available</p>;
-  }
-  const todayISO = new Date().toISOString().split("T")[0];
-
-  const todayData = data.find((d) => d.date === todayISO);
+  // Group bookings by roomId
+  const bookingsByRoom = todaysBookings.reduce((acc, booking) => {
+    if (!acc[booking.roomId]) acc[booking.roomId] = [];
+    acc[booking.roomId].push(booking);
+    return acc;
+  }, {});
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="text-lg font-semibold text-slate-900">
-      
         {formattedDate}
-        <p>Date by js {jsScript}</p>
-        <p>Date by data storage {data[0].date}</p>
-        <p>today iso {todayISO}</p>
-        <button
-          className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition"
-          onClick={() => setOpenBookingModal(true)}
-        >
-          Add new booking
-        </button>
+
+        <div className="mt-4">
+          <button
+            className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition"
+            onClick={() => setOpenBookingModal(true)}
+          >
+            Add new booking
+          </button>
+        </div>
       </div>
 
       {/* Room cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {todayData ? (
-          todayData.rooms.map((room) => (
-            <div
-              key={room.roomId}
-              className={`rounded-2xl p-4 transition
-          ${
-            room.bookings.length === 0
-              ? "bg-slate-200 text-slate-400 opacity-70"
-              : "bg-blue-300"
-          }
-        `}
-            >
-              <h1 className="font-semibold">{room.roomId}</h1>
-              <p className="text-sm text-slate-700">{room.location}</p>
+        {rooms.map((room) => {
+          const roomBookings = bookingsByRoom[room.id] || [];
 
-              <p className="mt-2 text-xs text-slate-700">
-                {room.bookings.length === 0
+          return (
+            <div
+              key={room.id}
+              className={`rounded-2xl p-4 transition ${
+                roomBookings.length === 0
+                  ? "bg-slate-200 text-slate-400 opacity-70"
+                  : "bg-blue-300"
+              }`}
+            >
+              <h1 className="font-semibold">{room.roomCode}</h1>
+              <p className="text-sm">{room.location}</p>
+
+              <p className="mt-2 text-xs">
+                {roomBookings.length === 0
                   ? "No bookings"
-                  : `${room.bookings.length} booking(s)`}
+                  : `${roomBookings.length} booking(s)`}
               </p>
 
               <div className="mt-3 space-y-3">
-                {room.bookings.map((booking) => (
+                {roomBookings.map((booking) => (
                   <div
-                    key={booking.bookingId}
+                    key={booking.id}
                     onClick={() => setSelectedBooking(booking)}
                     className="rounded-xl bg-white p-3 text-sm cursor-pointer hover:bg-slate-100"
                   >
-                    <strong>{booking.course}</strong>
-                    <br></br>
-                    {booking.startTime} – {booking.endTime}
+                    <strong>{booking.courseCode}</strong>
+                    <br />
+                    {new Date(booking.startTime).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}{" "}
+                    –{" "}
+                    {new Date(booking.endTime).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </div>
                 ))}
               </div>
             </div>
-          ))
-        ) : (
-          <p className="text-slate-500">No bookings for today</p>
-        )}
+          );
+        })}
       </div>
 
       {/* Booking details modal */}
@@ -119,16 +131,18 @@ const DailyViewPage = ({ showNotification }) => {
           booking={selectedBooking}
           onClose={() => setSelectedBooking(null)}
           showNotification={showNotification}
-          onSuccess={fetchBookings}
+          onSuccess={fetchData}
         />
       )}
 
       {/* Add booking modal */}
       {openBookingModal && (
         <AddBookingModal
+          rooms={rooms}
+          userId={HARDCODED_USER_ID}
           onClose={() => setOpenBookingModal(false)}
           showNotification={showNotification}
-          onSuccess={fetchBookings}
+          onSuccess={fetchData}
         />
       )}
     </div>

@@ -1,42 +1,65 @@
 import { useState } from "react";
 import axios from "axios";
 
-const AddBookingModal = ({ onClose, showNotification, onSuccess }) => {
-  const getTodayISO = () => new Date().toISOString().split("T")[0];
+const AddBookingModal = ({
+  rooms,
+  userId,
+  onClose,
+  showNotification,
+  onSuccess,
+}) => {
+  const todayISO = new Date().toISOString().split("T")[0];
 
-  const [date, setDate] = useState(getTodayISO());
-  const [course, setCourse] = useState("");
-  const [room, setRoom] = useState("");
+  const [date, setDate] = useState(todayISO);
+  const [courseCode, setCourseCode] = useState("");
+  const [roomId, setRoomId] = useState("");
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("18:00");
 
   const handleSubmit = async () => {
-    console.log("Date:", date);
-    console.log("room:", room);
-    console.log("course:", course);
-    console.log("starttime:", startTime);
-    console.log("end:", endTime);
-    if (!date || !room || !course) {
+    if (!date || !roomId || !courseCode) {
       showNotification("Please fill in all required fields", "error");
       return;
     }
 
-    const newBooking = {
-      date: date,
-      roomId: room,
-      course: course,
-      startTime: startTime,
-      endTime: endTime,
-    };
+    const courseDate = new Date(`${date}T00:00:00.000Z`);
+    const startDateTime = new Date(`${date}T${startTime}:00.000`);
+    const endDateTime = new Date(`${date}T${endTime}:00.000`);
 
     try {
-      await axios.post("http://localhost:3001/api/booking", newBooking);
+      await axios.post("http://localhost:3001/api/booking", {
+        userId,
+        roomId,
+        courseCode,
+        courseDate,
+        startTime: startDateTime,
+        endTime: endDateTime,
+      });
+
       showNotification("Booking created", "success");
       onSuccess();
-      onClose(); // close only after success
+      onClose();
     } catch (error) {
-      console.error("Booking failed:", error);
-      showNotification(error, "error");
+      console.error("Booking failed");
+
+      if (error.response) {
+        // Backend returned an error (400, 409, 500, etc)
+        console.error("Status:", error.response.status);
+        console.error("Response data:", error.response.data);
+
+        showNotification(
+          error.response.data?.message || "Server rejected booking",
+          "error"
+        );
+      } else if (error.request) {
+        // Request sent but no response
+        console.error("No response received:", error.request);
+        showNotification("No response from server", "error");
+      } else {
+        // Something else went wrong
+        console.error("Error message:", error.message);
+        showNotification(error.message, "error");
+      }
     }
   };
 
@@ -46,10 +69,7 @@ const AddBookingModal = ({ onClose, showNotification, onSuccess }) => {
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Booking Details</h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-700"
-          >
+          <button onClick={onClose} className="text-slate-400">
             ✕
           </button>
         </div>
@@ -57,7 +77,7 @@ const AddBookingModal = ({ onClose, showNotification, onSuccess }) => {
         {/* Content */}
         <div className="space-y-3 text-sm">
           <div>
-            <strong>Date:</strong>
+            <strong>Date</strong>
             <input
               type="date"
               className="mt-1 w-full rounded-lg border px-3 py-2"
@@ -67,36 +87,33 @@ const AddBookingModal = ({ onClose, showNotification, onSuccess }) => {
           </div>
 
           <div>
-            <strong>Room Number:</strong>
+            <strong>Room</strong>
             <select
               className="mt-1 w-full rounded-lg border px-3 py-2"
-              value={room}
-              onChange={(e) => {
-                setRoom(e.target.value);
-                console.log(e.target.value);
-              }}
+              value={roomId}
+              onChange={(e) => setRoomId(e.target.value)}
             >
               <option value="">Select a room</option>
-              <option value="CRoom1">CRoom1</option>
-              <option value="CRoom2">CRoom2</option>
+              {rooms.map((room) => (
+                <option key={room.id} value={room.id}>
+                  {room.roomCode} — {room.location}
+                </option>
+              ))}
             </select>
           </div>
 
           <div>
-            <strong>Course Id:</strong>
+            <strong>Course Code</strong>
             <input
               className="mt-1 w-full rounded-lg border px-3 py-2"
               type="text"
-              value={course}
-              onChange={(e) => {
-                setCourse(e.target.value);
-                console.log(e.target.value);
-              }}
+              value={courseCode}
+              onChange={(e) => setCourseCode(e.target.value)}
             />
           </div>
 
           <div>
-            <strong>Start Time:</strong>
+            <strong>Start Time</strong>
             <input
               className="mt-1 w-full rounded-lg border px-3 py-2"
               type="time"
@@ -106,7 +123,7 @@ const AddBookingModal = ({ onClose, showNotification, onSuccess }) => {
           </div>
 
           <div>
-            <strong>End Time:</strong>
+            <strong>End Time</strong>
             <input
               className="mt-1 w-full rounded-lg border px-3 py-2"
               type="time"

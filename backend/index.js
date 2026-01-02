@@ -3,6 +3,8 @@ import cors from "cors";
 
 import { connectDB, disconnectDB } from "./src/config/db.js";
 import bookingRouter from "./src/routes/bookingRouter.js";
+import bookingPrismaRouter from "./src/routes/bookingPrismaRoutes.js";
+import roomRouter from "./src/routes/roomRoutes.js";
 import authRouter from "./src/routes/authRoutes.js";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
@@ -23,8 +25,18 @@ app.use(cookieParser());
 // Routes
 // app.use("/api/auth", authRoutes);
 app.use("/auth", authRouter);
-app.use("/api/booking", bookingRouter);
+app.use("/api/booking", bookingPrismaRouter);
+app.use("/api/room", roomRouter);
+// app.use("/api/booking", bookingRouter);
 // // Health check
+app.use((err, req, res, next) => {
+  console.error("API Error:", err);
+
+  res.status(err.status || 500).json({
+    message: err.message || "Internal server error",
+  });
+});
+
 app.get("/", (req, res) => {
   res.send("API running");
 });

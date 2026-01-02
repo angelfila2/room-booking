@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import dotenv from "dotenv";
-import bcrypt from "bcrypt"; // ✅ ADD THIS
+import bcrypt from "bcrypt";
 
 dotenv.config();
 
@@ -16,9 +16,9 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log("🌱 Seeding database...");
+  console.log("Seeding database...");
 
-  // 1️⃣ Create a user
+  // 1️⃣ Create user
   const hashedPassword = await bcrypt.hash("password123", 10);
 
   const user = await prisma.user.upsert({
@@ -31,16 +31,7 @@ async function main() {
     },
   });
 
-  // 2️⃣ Create daily overview
-  const dailyOverview = await prisma.dailyOverview.upsert({
-    where: { overviewDate: new Date("2025-12-22") },
-    update: {},
-    create: {
-      overviewDate: new Date("2025-12-22"),
-    },
-  });
-
-  // 3️⃣ Create rooms
+  // 2️⃣ Create rooms
   const roomsData = [
     { roomCode: "CRoom1", location: "Block A - 101" },
     { roomCode: "CRoom2", location: "Block A - 102" },
@@ -61,37 +52,42 @@ async function main() {
     rooms.push(createdRoom);
   }
 
-  // 4️⃣ Create bookings (for CRoom1)
+  // 3️⃣ Create bookings
   const room1 = rooms.find((r) => r.roomCode === "CRoom1");
-  if (!room1) throw new Error("CRoom1 not found");
+  if (!room1) {
+    throw new Error("CRoom1 not found");
+  }
+
+  // Normalize date to midnight UTC (DATE-only semantic)
+  const courseDate = new Date("2025-12-22T00:00:00.000Z");
 
   await prisma.booking.createMany({
     data: [
       {
-        dailyOverviewId: dailyOverview.id,
-        roomId: room1.id,
         userId: user.id,
+        roomId: room1.id,
         courseCode: "ICT210",
-        startTime: new Date("2025-12-22T09:00:00"),
-        endTime: new Date("2025-12-22T11:00:00"),
+        courseDate,
+        startTime: new Date("2025-12-22T09:00:00.000Z"),
+        endTime: new Date("2025-12-22T11:00:00.000Z"),
       },
       {
-        dailyOverviewId: dailyOverview.id,
-        roomId: room1.id,
         userId: user.id,
+        roomId: room1.id,
         courseCode: "ICT100",
-        startTime: new Date("2025-12-22T14:00:00"),
-        endTime: new Date("2025-12-22T16:00:00"),
+        courseDate,
+        startTime: new Date("2025-12-22T14:00:00.000Z"),
+        endTime: new Date("2025-12-22T16:00:00.000Z"),
       },
     ],
   });
 
-  console.log("✅ Seeding completed successfully");
+  console.log("Seeding completed successfully");
 }
 
 main()
   .catch((e) => {
-    console.error("❌ Seeding error:", e);
+    console.error("Seeding error:", e);
     process.exit(1);
   })
   .finally(async () => {

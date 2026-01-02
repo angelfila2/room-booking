@@ -21,16 +21,6 @@ model User {
   bookings Booking[]
 }
 
-model DailyOverview {
-  id           String   @id @default(uuid())
-  overviewDate DateTime @unique
-
-  // Relations
-  bookings Booking[]
-
-  createdAt DateTime @default(now())
-}
-
 model Room {
   id       String @id @default(uuid())
   roomCode String @unique
@@ -41,27 +31,27 @@ model Room {
 }
 
 model Booking {
-  id              String   @id @default(uuid())
+  id        String   @id @default(uuid())
 
-  dailyOverviewId String
-  roomId          String
-  userId          String
+  userId    String
+  roomId    String
 
   courseCode String
-  startTime  DateTime
-  endTime    DateTime
+
+  // 👇 Date of the booking (normalized to 00:00:00 UTC)
+  courseDate DateTime
+
+  startTime DateTime
+  endTime   DateTime
 
   createdAt DateTime @default(now())
 
   // Relations
-  dailyOverview DailyOverview @relation(fields: [dailyOverviewId], references: [id], onDelete: Cascade)
-  room          Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
-  @@index([dailyOverviewId])
-  @@index([roomId])
+  // Indexes for common queries
+  @@index([courseDate])
+  @@index([roomId, courseDate])
   @@index([userId])
-
-  // Prevent double-booking the same room & time
-  @@unique([dailyOverviewId, roomId, startTime, endTime])
 }
