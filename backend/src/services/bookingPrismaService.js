@@ -15,6 +15,7 @@ const formatDate = (date) => new Date(date).toISOString().split("T")[0];
 
 /* ======================================================
    INTERNAL: Check for overlapping bookings
+   (room-level conflict, user-agnostic)
    ====================================================== */
 
 const hasConflict = async ({
@@ -37,25 +38,24 @@ const hasConflict = async ({
 };
 
 /* ======================================================
-   READ
+   READ (user-scoped)
    ====================================================== */
 
-const getAllBookings = async () => {
+const getAllBookingsByUser = async (userId) => {
   return prisma.booking.findMany({
-    orderBy: {
-      startTime: "asc",
-    },
+    where: { userId },
+    orderBy: { startTime: "asc" },
   });
 };
 
-const getBookingById = async (id) => {
-  return prisma.booking.findUnique({
-    where: { id },
+const getBookingByIdAndUser = async (id, userId) => {
+  return prisma.booking.findFirst({
+    where: { id, userId },
   });
 };
 
 /* ======================================================
-   CREATE (with conflict detection)
+   CREATE (ownership enforced + conflict detection)
    ====================================================== */
 
 const createBooking = async ({
@@ -98,18 +98,16 @@ const createBooking = async ({
 };
 
 /* ======================================================
-   UPDATE (with conflict detection)
+   UPDATE (ownership enforced + conflict detection)
    ====================================================== */
 
-const updateBooking = async (id, updates) => {
-  const existing = await prisma.booking.findUnique({
-    where: { id },
+const updateBookingByUser = async (id, userId, updates) => {
+  const existing = await prisma.booking.findFirst({
+    where: { id, userId },
   });
 
   if (!existing) {
-    const error = new Error("Booking not found");
-    error.status = 404;
-    throw error;
+    return null;
   }
 
   const conflict = await hasConflict({
@@ -139,13 +137,23 @@ const updateBooking = async (id, updates) => {
 };
 
 /* ======================================================
-   DELETE
+   DELETE (ownership enforced)
    ====================================================== */
 
-const deleteBooking = async (id) => {
-  return prisma.booking.delete({
+const deleteBookingByUser = async (id, userId) => {
+  const existing = await prisma.booking.findFirst({
+    where: { id, userId },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  await prisma.booking.delete({
     where: { id },
   });
+
+  return true;
 };
 
 /* ======================================================
@@ -153,9 +161,9 @@ const deleteBooking = async (id) => {
    ====================================================== */
 
 export default {
-  getAllBookings,
-  getBookingById,
+  getAllBookingsByUser,
+  getBookingByIdAndUser,
   createBooking,
-  updateBooking,
-  deleteBooking,
+  updateBookingByUser,
+  deleteBookingByUser,
 };

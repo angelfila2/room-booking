@@ -27,14 +27,20 @@ const AddBookingModal = ({
     const endDateTime = new Date(`${date}T${endTime}:00.000`);
 
     try {
-      await axios.post("http://localhost:3001/api/booking", {
-        userId,
-        roomId,
-        courseCode,
-        courseDate,
-        startTime: startDateTime,
-        endTime: endDateTime,
-      });
+      await axios.post(
+        "http://localhost:3001/api/booking",
+        {
+          userId,
+          roomId,
+          courseCode,
+          courseDate,
+          startTime: startDateTime,
+          endTime: endDateTime,
+        },
+        {
+          withCredentials: true,
+        }
+      );
 
       showNotification("Booking created", "success");
       onSuccess();

@@ -2,16 +2,19 @@ import express from "express";
 import cors from "cors";
 
 import { connectDB, disconnectDB } from "./src/config/db.js";
-import bookingRouter from "./src/routes/bookingRouter.js";
 import bookingPrismaRouter from "./src/routes/bookingPrismaRoutes.js";
 import roomRouter from "./src/routes/roomRoutes.js";
 import authRouter from "./src/routes/authRoutes.js";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
+
+
+
+
 dotenv.config();
 connectDB();
 const app = express();
-console.log("🔥 BACKEND STARTED 🔥");
+console.log("BACKEND STARTED - ENV:", process.env.NODE_ENV);
 // Middleware
 app.use(
   cors({

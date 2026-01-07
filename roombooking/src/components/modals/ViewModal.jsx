@@ -19,7 +19,9 @@ const Modal = ({ booking, onClose, showNotification, onSuccess }) => {
 
   const handleDelete = async () => {
     try {
-      await axios.delete(`http://localhost:3001/api/booking/${booking.id}`);
+      await axios.delete(`http://localhost:3001/api/booking/${booking.id}`, {
+        withCredentials: true,
+      });
 
       showNotification("Booking deleted", "success");
       onSuccess();
@@ -37,11 +39,17 @@ const Modal = ({ booking, onClose, showNotification, onSuccess }) => {
       const updatedStart = new Date(`${date}T${startTime}:00.000Z`);
       const updatedEnd = new Date(`${date}T${endTime}:00.000Z`);
 
-      await axios.put(`http://localhost:3001/api/booking/${booking.id}`, {
-        courseCode,
-        startTime: updatedStart,
-        endTime: updatedEnd,
-      });
+      await axios.put(
+        `http://localhost:3001/api/booking/${booking.id}`,
+        {
+          courseCode,
+          startTime: updatedStart,
+          endTime: updatedEnd,
+        },
+        {
+          withCredentials: true,
+        }
+      );
 
       showNotification("Booking updated", "success");
       onSuccess();

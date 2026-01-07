@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
+import axios from "axios";
 import Modal from "../modals/ViewModal";
 import AddBookingModal from "../modals/AddBookingModal";
-import axios from "axios";
 
 const DailyViewPage = ({ showNotification }) => {
-  const HARDCODED_USER_ID = "c290a99e-fe6c-4855-bb73-2d5eda459978";
   const [rooms, setRooms] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -25,17 +24,23 @@ const DailyViewPage = ({ showNotification }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      setError(null);
 
       const [roomsRes, bookingsRes] = await Promise.all([
-        axios.get("http://localhost:3001/api/room"),
-        axios.get("http://localhost:3001/api/booking"),
+        axios.get("http://localhost:3001/api/room", {
+          withCredentials: true,
+        }),
+        axios.get("http://localhost:3001/api/booking", {
+          withCredentials: true,
+        }),
       ]);
 
       setRooms(roomsRes.data);
       setBookings(bookingsRes.data);
-    } catch {
+    } catch (err) {
+      console.error(err);
       setError("Failed to load data");
-      showNotification("Failed to load data", "error");
+      showNotification("Failed to load data" + err, "error");
     } finally {
       setLoading(false);
     }
@@ -45,8 +50,13 @@ const DailyViewPage = ({ showNotification }) => {
     fetchData();
   }, []);
 
-  if (loading) return <p className="text-slate-500">Loading…</p>;
-  if (error) return <p className="text-red-500">{error}</p>;
+  if (loading) {
+    return <p className="text-slate-500">Loading…</p>;
+  }
+
+  if (error) {
+    return <p className="text-red-500">{error}</p>;
+  }
 
   // Filter bookings for today
   const todaysBookings = bookings.filter(
@@ -139,7 +149,6 @@ const DailyViewPage = ({ showNotification }) => {
       {openBookingModal && (
         <AddBookingModal
           rooms={rooms}
-          userId={HARDCODED_USER_ID}
           onClose={() => setOpenBookingModal(false)}
           showNotification={showNotification}
           onSuccess={fetchData}

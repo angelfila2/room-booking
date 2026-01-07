@@ -6,8 +6,12 @@ import {
   update,
   remove,
 } from "../controllers/bookingEnhancedController.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+// 🔐 PROTECT ALL BOOKING ROUTES
+router.use(protect);
 
 // READ
 router.get("/", getAll);

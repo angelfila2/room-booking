@@ -16,10 +16,16 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post("http://localhost:3001/auth/login", {
-        email,
-        password,
-      });
+      const response = await axios.post(
+        "http://localhost:3001/auth/login",
+        {
+          email,
+          password,
+        },
+        {
+          withCredentials: true,
+        }
+      );
 
       // ✅ FIX 2: navigate normally (no router state)
       navigate("/dashboard");
