@@ -1,140 +1,168 @@
 import { useState } from "react";
 import axios from "axios";
 
-const AddBookingModal = ({ onClose, showNotification, onSuccess }) => {
-  const getTodayISO = () => new Date().toISOString().split("T")[0];
-
-  const [date, setDate] = useState(getTodayISO());
+export default function AddBookingModal({
+  initialDate,
+  onClose,
+  showNotification,
+  onSuccess,
+}) {
+  const [date, setDate] = useState(initialDate);
   const [course, setCourse] = useState("");
   const [room, setRoom] = useState("");
   const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("18:00");
-
-  const handleSubmit = async () => {
-    console.log("Date:", date);
-    console.log("room:", room);
-    console.log("course:", course);
-    console.log("starttime:", startTime);
-    console.log("end:", endTime);
-    if (!date || !room || !course) {
-      showNotification("Please fill in all required fields", "error");
+  const [endTime, setEndTime] = useState("10:00");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  async function submit(event) {
+    event.preventDefault();
+    if (!course.trim()) {
+      setError("Enter a course or meeting name.");
       return;
     }
-
-    const newBooking = {
-      date: date,
-      roomId: room,
-      course: course,
-      startTime: startTime,
-      endTime: endTime,
-    };
-
+    if (endTime <= startTime) {
+      setError("End time must be later than start time.");
+      return;
+    }
+    setSaving(true);
+    setError("");
     try {
-      await axios.post("http://localhost:3001/api/booking", newBooking);
+      await axios.post("/api/booking", {
+        date,
+        roomId: room,
+        course: course.trim(),
+        startTime,
+        endTime,
+      });
       showNotification("Booking created", "success");
       onSuccess();
-      onClose(); // close only after success
+      onClose();
     } catch (error) {
-      console.error("Booking failed:", error);
-      showNotification(error, "error");
+      setError(
+        error.response?.data?.error ||
+          "Unable to create the booking. Please try again.",
+      );
+    } finally {
+      setSaving(false);
     }
-  };
-
+  }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Booking Details</h2>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+      onKeyDown={(event) => event.key === "Escape" && !saving && onClose()}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-booking-title"
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+      >
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <p className="text-xs uppercase tracking-wider font-bold text-blue-800">
+              Room reservation
+            </p>
+            <h2 id="add-booking-title" className="text-xl font-bold mt-1">
+              New booking
+            </h2>
+          </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700"
+            disabled={saving}
+            aria-label="Close booking form"
+            className="rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100"
           >
             ✕
           </button>
         </div>
-
-        {/* Content */}
-        <div className="space-y-3 text-sm">
-          <div>
-            <strong>Date:</strong>
+        <form onSubmit={submit} className="space-y-4">
+          {error && (
+            <p
+              role="alert"
+              className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+            >
+              {error}
+            </p>
+          )}
+          <label className="block text-sm font-semibold">
+            Date
             <input
+              autoFocus
               type="date"
-              className="mt-1 w-full rounded-lg border px-3 py-2"
+              required
               value={date}
               onChange={(e) => setDate(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-400 px-3 py-2"
             />
-          </div>
-
-          <div>
-            <strong>Room Number:</strong>
+          </label>
+          <label className="block text-sm font-semibold">
+            Room
             <select
-              className="mt-1 w-full rounded-lg border px-3 py-2"
+              required
               value={room}
-              onChange={(e) => {
-                setRoom(e.target.value);
-                console.log(e.target.value);
-              }}
+              onChange={(e) => setRoom(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-400 px-3 py-2"
             >
               <option value="">Select a room</option>
-              <option value="CRoom1">CRoom1</option>
-              <option value="CRoom2">CRoom2</option>
+              {[1, 2, 3, 4, 5].map((id) => (
+                <option key={id} value={`CRoom${id}`}>
+                  CRoom{id}
+                </option>
+              ))}
             </select>
-          </div>
-
-          <div>
-            <strong>Course Id:</strong>
+          </label>
+          <label className="block text-sm font-semibold">
+            Course / meeting
             <input
-              className="mt-1 w-full rounded-lg border px-3 py-2"
-              type="text"
+              required
+              maxLength={100}
               value={course}
-              onChange={(e) => {
-                setCourse(e.target.value);
-                console.log(e.target.value);
-              }}
+              onChange={(e) => setCourse(e.target.value)}
+              placeholder="e.g. ICT210 workshop"
+              className="mt-1 w-full rounded-lg border border-slate-400 px-3 py-2"
             />
+          </label>
+          <div className="grid grid-cols-2 gap-4">
+            <label className="block text-sm font-semibold">
+              Start time
+              <input
+                type="time"
+                required
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-400 px-3 py-2"
+              />
+            </label>
+            <label className="block text-sm font-semibold">
+              End time
+              <input
+                type="time"
+                required
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-400 px-3 py-2"
+              />
+            </label>
           </div>
-
-          <div>
-            <strong>Start Time:</strong>
-            <input
-              className="mt-1 w-full rounded-lg border px-3 py-2"
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-            />
+          <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="rounded-lg border border-slate-400 px-4 py-2 font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800"
+            >
+              {saving ? "Creating…" : "Create booking"}
+            </button>
           </div>
-
-          <div>
-            <strong>End Time:</strong>
-            <input
-              className="mt-1 w-full rounded-lg border px-3 py-2"
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-6 flex justify-end gap-2">
-          <button
-            onClick={handleSubmit}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-white"
-          >
-            Create Booking
-          </button>
-
-          <button
-            onClick={onClose}
-            className="rounded-lg bg-slate-300 px-4 py-2"
-          >
-            Close
-          </button>
-        </div>
-      </div>
+        </form>
+      </section>
     </div>
   );
-};
-
-export default AddBookingModal;
+}

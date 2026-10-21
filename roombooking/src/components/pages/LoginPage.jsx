@@ -17,9 +17,9 @@ const LoginPage = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:3001/auth/login",
+        "/auth/login",
         { username, password },
-        { withCredentials: true }
+        { withCredentials: true },
       );
 
       // ✅ FIX 1: store token (single source of truth)
@@ -39,11 +39,15 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-200 text-slate-900 p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
         <h1 className="text-3xl font-bold text-center mb-6 text-slate-900">
-          Welcome Back
+          Welcome back
         </h1>
+
+        <p className="text-center text-slate-700 -mt-3 mb-6">
+          Sign in to manage room reservations.
+        </p>
 
         {errorMsg && (
           <div className="mb-4 rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700">
@@ -61,6 +65,7 @@ const LoginPage = () => {
             </label>
             <input
               id="username"
+              autoComplete="username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -79,6 +84,7 @@ const LoginPage = () => {
             </label>
             <input
               id="password"
+              autoComplete="current-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

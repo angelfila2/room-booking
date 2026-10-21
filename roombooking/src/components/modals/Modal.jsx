@@ -1,109 +1,153 @@
 import axios from "axios";
 import { useState } from "react";
-const Modal = ({ booking, onClose, showNotification, onSuccess }) => {
+
+export default function Modal({
+  booking,
+  onClose,
+  showNotification,
+  onSuccess,
+}) {
   const [course, setCourse] = useState(booking.course || "");
   const [startTime, setStartTime] = useState(booking.startTime);
   const [endTime, setEndTime] = useState(booking.endTime);
-  const handleDelete = async (id) => {
-    try {
-      await axios.delete("http://localhost:3001/api/booking", {
-        data: { id }, // 👈 DELETE body goes here
-      });
-      showNotification("Booking deleted", "success");
-      onSuccess();
-      onClose(); // close only after success
-    } catch (error) {
-      console.error("Delete failed:", error);
-      showNotification("Failed to delete booking:" + error, "error");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  async function save(event) {
+    event.preventDefault();
+    if (!course.trim()) {
+      setError("Enter a course or meeting name.");
+      return;
     }
-  };
-  const handleUpdate = async (id) => {
+    if (endTime <= startTime) {
+      setError("End time must be later than start time.");
+      return;
+    }
+    setSaving(true);
+    setError("");
     try {
-      await axios.put("http://localhost:3001/api/booking", {
-        id,
-        course,
+      await axios.put("/api/booking", {
+        id: booking.bookingId,
+        course: course.trim(),
         startTime,
         endTime,
       });
-      onSuccess();
-
-      onClose(); // close only after success
-    } catch (error) {
       showNotification("Booking updated", "success");
-      console.error("Update failed:", error);
-      showNotification("Failed to update booking " + error, "error");
+      onSuccess();
+      onClose();
+    } catch (error) {
+      setError(error.response?.data?.error || "Unable to update the booking.");
+    } finally {
+      setSaving(false);
     }
-  };
-
+  }
+  async function remove() {
+    if (!window.confirm("Delete this booking?")) return;
+    setSaving(true);
+    setError("");
+    try {
+      await axios.delete("/api/booking", { data: { id: booking.bookingId } });
+      showNotification("Booking deleted", "success");
+      onSuccess();
+      onClose();
+    } catch (error) {
+      setError(error.response?.data?.error || "Unable to delete the booking.");
+    } finally {
+      setSaving(false);
+    }
+  }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Booking Details</h2>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+      onKeyDown={(event) => event.key === "Escape" && !saving && onClose()}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="booking-title"
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+      >
+        <div className="flex justify-between items-center mb-5">
+          <div>
+            <p className="text-xs uppercase tracking-wider font-bold text-blue-800">
+              Room reservation
+            </p>
+            <h2 id="booking-title" className="text-xl font-bold mt-1">
+              Booking details
+            </h2>
+          </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700"
+            disabled={saving}
+            aria-label="Close booking details"
+            className="rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100"
           >
             ✕
           </button>
         </div>
-
-        {/* Content */}
-        <div className="space-y-2 text-sm">
-          <div>
-            <label className="block text-sm font-medium">Course</label>
+        <form onSubmit={save} className="space-y-4">
+          {error && (
+            <p
+              role="alert"
+              className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+            >
+              {error}
+            </p>
+          )}
+          <label className="block text-sm font-semibold">
+            Course / meeting
             <input
-              type="text"
+              autoFocus
+              required
+              maxLength={100}
               value={course}
               onChange={(e) => setCourse(e.target.value)}
-              className="mt-1 w-full rounded-lg border px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-slate-400 px-3 py-2"
             />
+          </label>
+          <div className="grid grid-cols-2 gap-4">
+            <label className="block text-sm font-semibold">
+              Start time
+              <input
+                type="time"
+                required
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-400 px-3 py-2"
+              />
+            </label>
+            <label className="block text-sm font-semibold">
+              End time
+              <input
+                type="time"
+                required
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-400 px-3 py-2"
+              />
+            </label>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium">Start Time</label>
-            <input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="mt-1 w-full rounded-lg border px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium">End Time</label>
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              className="mt-1 w-full rounded-lg border px-3 py-2"
-            />
-          </div>
-
-          <p>
-            <strong>Booking ID:</strong> {booking.bookingId}
+          <p className="text-xs text-slate-700 break-all">
+            Booking reference: {booking.bookingId}
           </p>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-6 flex justify-end gap-5">
-          <button
-            onClick={() => handleUpdate(booking.bookingId)}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-white"
-          >
-            Update
-          </button>
-
-          <button
-            onClick={() => handleDelete(booking.bookingId)} // ✅ wrapped
-            className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
+          <div className="flex flex-wrap justify-between gap-3 border-t border-slate-200 pt-5">
+            <button
+              type="button"
+              onClick={remove}
+              disabled={saving}
+              className="rounded-lg border border-red-300 bg-red-50 text-red-800 px-4 py-2 font-semibold"
+            >
+              Delete booking
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800"
+            >
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+          </div>
+        </form>
+      </section>
     </div>
   );
-};
-
-export default Modal;
+}

@@ -3,136 +3,166 @@ import Modal from "../modals/Modal";
 import AddBookingModal from "../modals/AddBookingModal";
 import axios from "axios";
 
-const DailyViewPage = ({ showNotification }) => {
-  const [data, setData] = useState(null);
+const ROOMS = [
+  { roomId: "CRoom1", location: "Block A - 101" },
+  { roomId: "CRoom2", location: "Block A - 102" },
+  { roomId: "CRoom3", location: "Block B - 201" },
+  { roomId: "CRoom4", location: "Block B - 202" },
+  { roomId: "CRoom5", location: "Block C - 301" },
+];
+const localDate = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+export default function DailyViewPage({ showNotification }) {
+  const [data, setData] = useState([]);
+  const [date, setDate] = useState(localDate);
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [openBookingModal, setOpenBookingModal] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const today = new Date();
-
-  const formattedDate = today.toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-
-  const jsScript = today.toLocaleDateString("en-GB");
-
-  const fetchBookings = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get("http://localhost:3001/api/booking");
-      setData(res.data);
-    } catch (err) {
-      showNotification("Failed to load bookings", "error");
-      setError("Failed to load bookings");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  const [error, setError] = useState("");
   useEffect(() => {
-    fetchBookings();
-  }, []);
-
-  if (loading) {
-    return <p className="text-slate-500">Loading bookings…</p>;
-  }
-
-  if (error) {
-    return <p className="text-red-500">{error}</p>;
-  }
-
-  if (!data || data.length === 0) {
-    return <p>No booking data available</p>;
-  }
-  const todayISO = new Date().toISOString().split("T")[0];
-
-  const todayData = data.find((d) => d.date === todayISO);
-
+    const controller = new AbortController();
+    async function load() {
+      try {
+        const response = await axios.get("/api/booking", {
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) {
+          setData(response.data);
+          setError("");
+        }
+      } catch {
+        if (!controller.signal.aborted)
+          setError("Unable to load bookings. Check the backend and try again.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+    load();
+    return () => controller.abort();
+  }, [revision]);
+  const reload = () => setRevision((value) => value + 1);
+  const rooms =
+    data.find((day) => day.date === date)?.rooms ||
+    ROOMS.map((room) => ({ ...room, bookings: [] }));
+  const count = rooms.reduce((sum, room) => sum + room.bookings.length, 0);
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="text-lg font-semibold text-slate-900">
-      
-        {formattedDate}
-        <p>Date by js {jsScript}</p>
-        <p>Date by data storage {data[0].date}</p>
-        <p>today iso {todayISO}</p>
-        <button
-          className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition"
-          onClick={() => setOpenBookingModal(true)}
+    <section className="space-y-6" aria-label="Daily room schedule">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold">Daily schedule</h2>
+          <p className="text-slate-700 mt-1">
+            {new Date(`${date}T12:00:00`).toLocaleDateString("en-GB", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}{" "}
+            · {count} booking{count === 1 ? "" : "s"}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3 items-center">
+          <label className="font-semibold" htmlFor="schedule-date">
+            View date
+          </label>
+          <input
+            id="schedule-date"
+            type="date"
+            required
+            value={date}
+            onChange={(event) =>
+              event.target.value && setDate(event.target.value)
+            }
+            className="rounded-lg border border-slate-400 bg-white px-3 py-2"
+          />
+          <button
+            onClick={() => setAdding(true)}
+            className="rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800"
+          >
+            Add new booking
+          </button>
+        </div>
+      </div>
+      {loading ? (
+        <p role="status">Loading bookings…</p>
+      ) : error ? (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-300 bg-red-50 p-5 text-red-900"
         >
-          Add new booking
-        </button>
-      </div>
-
-      {/* Room cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {todayData ? (
-          todayData.rooms.map((room) => (
-            <div
+          {error}{" "}
+          <button onClick={reload} className="underline font-semibold">
+            Try again
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {rooms.map((room) => (
+            <article
               key={room.roomId}
-              className={`rounded-2xl p-4 transition
-          ${
-            room.bookings.length === 0
-              ? "bg-slate-200 text-slate-400 opacity-70"
-              : "bg-blue-300"
-          }
-        `}
+              className={`rounded-2xl border p-5 shadow-sm ${room.bookings.length ? "bg-blue-50 border-blue-300" : "bg-white border-slate-300"}`}
             >
-              <h1 className="font-semibold">{room.roomId}</h1>
-              <p className="text-sm text-slate-700">{room.location}</p>
-
-              <p className="mt-2 text-xs text-slate-700">
-                {room.bookings.length === 0
-                  ? "No bookings"
-                  : `${room.bookings.length} booking(s)`}
-              </p>
-
-              <div className="mt-3 space-y-3">
-                {room.bookings.map((booking) => (
-                  <div
-                    key={booking.bookingId}
-                    onClick={() => setSelectedBooking(booking)}
-                    className="rounded-xl bg-white p-3 text-sm cursor-pointer hover:bg-slate-100"
-                  >
-                    <strong>{booking.course}</strong>
-                    <br></br>
-                    {booking.startTime} – {booking.endTime}
-                  </div>
-                ))}
+              <div className="flex justify-between items-center gap-2">
+                <h3 className="text-lg font-bold">{room.roomId}</h3>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-bold ${room.bookings.length ? "bg-blue-100 text-blue-900" : "bg-emerald-100 text-emerald-900"}`}
+                >
+                  {room.bookings.length
+                    ? `${room.bookings.length} booked`
+                    : "Available"}
+                </span>
               </div>
-            </div>
-          ))
-        ) : (
-          <p className="text-slate-500">No bookings for today</p>
-        )}
-      </div>
-
-      {/* Booking details modal */}
+              <p className="text-sm text-slate-700 mt-1">{room.location}</p>
+              <div className="mt-5 space-y-3">
+                {room.bookings.length ? (
+                  [...room.bookings]
+                    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                    .map((booking) => (
+                      <button
+                        key={booking.bookingId}
+                        onClick={() => setSelectedBooking(booking)}
+                        className="block w-full rounded-xl border border-blue-200 bg-white p-4 text-left hover:border-blue-600 hover:shadow-sm"
+                      >
+                        <strong className="block text-slate-900">
+                          {booking.course || "Room reservation"}
+                        </strong>
+                        <span className="block text-sm text-slate-700 mt-1">
+                          {booking.startTime} – {booking.endTime}
+                        </span>
+                        <span className="block text-xs text-blue-800 mt-2 font-semibold">
+                          View booking →
+                        </span>
+                      </button>
+                    ))
+                ) : (
+                  <p className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-700">
+                    No bookings for this date.
+                  </p>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
       {selectedBooking && (
         <Modal
           booking={selectedBooking}
           onClose={() => setSelectedBooking(null)}
           showNotification={showNotification}
-          onSuccess={fetchBookings}
+          onSuccess={reload}
         />
       )}
-
-      {/* Add booking modal */}
-      {openBookingModal && (
+      {adding && (
         <AddBookingModal
-          onClose={() => setOpenBookingModal(false)}
+          initialDate={date}
+          onClose={() => setAdding(false)}
           showNotification={showNotification}
-          onSuccess={fetchBookings}
+          onSuccess={reload}
         />
       )}
-    </div>
+    </section>
   );
-};
-
-export default DailyViewPage;
+}
